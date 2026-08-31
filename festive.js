@@ -6,8 +6,11 @@
     endDate:   { month: 0,  day: 7  }  // January 7th
   };
 
-  /* Characters for the matrix rain — binary, hex, katakana */
-  const GLYPHS = '01アイウエオカキクケコサシスセソタチツテト0123456789ABCDEFabcdef#@$%';
+  /* Characters for the matrix rain — binary, uppercase hex, katakana */
+  const GLYPHS = '01アイウエオカキクケコサシスセソタチツテト0123456789ABCDEF#@$%';
+
+  /* Characters for the cyber LED bulbs — uppercase hexadecimal */
+  const HEX_CHARS = '0123456789ABCDEF';
 
   /* Christmas-themed matrix rain streams (Red, Green, Gold, Ice) */
   const RAIN_PALETTES = [
@@ -237,7 +240,7 @@
       const color = CONFIG.colors[i % CONFIG.colors.length];
       bulb.style.backgroundColor = color;
       bulb.style.boxShadow = `0 0 5px ${color}, 0 0 12px ${color}88`;
-      bulb.textContent = Math.random() < 0.5 ? '0' : '1';
+      bulb.textContent = HEX_CHARS[Math.floor(Math.random() * HEX_CHARS.length)];
       bulb.style.animationDelay = `${(Math.random() * 3).toFixed(2)}s`;
 
       socket.appendChild(bulb);
