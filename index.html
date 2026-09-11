@@ -5,7 +5,7 @@
 <title>Alberto Ortega</title>
 <meta charset="utf-8">
 <meta name="description" content="Alberto Ortega's profile">
-<link rel="shortcut icon" href="favicon.png" type="image/png">
+<link rel="icon" href="favicon.png" type="image/png">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <style>
@@ -97,10 +97,42 @@
 		opacity: 1;
 	}
 	/* Show the right icon per theme */
-	#theme-toggle .icon-sun  { display: none; }
-	#theme-toggle .icon-moon { display: inline; }
-	[data-theme="dark"] #theme-toggle .icon-sun  { display: inline; }
-	[data-theme="dark"] #theme-toggle .icon-moon { display: none; }
+	#theme-toggle .icon-pirate { display: none; }
+	#theme-toggle .icon-ninja  { display: inline; }
+	[data-theme="dark"] #theme-toggle .icon-pirate {
+		display: inline;
+		animation: pirate-twitch 7.5s infinite;
+	}
+	[data-theme="dark"] #theme-toggle .icon-ninja  { display: none; }
+
+	@keyframes pirate-twitch {
+		0%, 91%, 93.5%, 96%, 100% {
+			opacity: 1;
+			filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.85)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.45));
+		}
+		92% {
+			opacity: 0.8;
+			filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.5)) drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
+		}
+		93% {
+			opacity: 1;
+			filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 10px rgba(255, 255, 255, 0.6));
+		}
+		94.5% {
+			opacity: 0.85;
+			filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
+		}
+		95.5% {
+			opacity: 0.78;
+			filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.45)) drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		[data-theme="dark"] #theme-toggle .icon-pirate {
+			animation: none;
+			filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.85)) drop-shadow(0 0 8px rgba(255, 255, 255, 0.45));
+		}
+	}
 
 	/* ── Mobile adjustments (screens <= 600px) ─────────────────── */
 	@media (max-width: 600px) {
@@ -121,8 +153,8 @@
 <body>
 	<!-- Theme toggle button -->
 	<button id="theme-toggle" aria-label="Toggle dark/light mode" title="Toggle dark/light mode">
-		<span class="icon-sun" aria-hidden="true">🏴‍☠️</span>
-		<span class="icon-moon" aria-hidden="true">🥷</span>
+		<span class="icon-pirate" aria-hidden="true">🏴‍☠️</span>
+		<span class="icon-ninja" aria-hidden="true">🥷</span>
 	</button>
 	<script>
 		/* ── Theme initialisation (runs before paint to avoid flash) ── */

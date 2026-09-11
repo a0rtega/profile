@@ -3,7 +3,7 @@
   const CONFIG = {
     colors: ['#ff2244', '#00e676', '#ffcc00', '#00e5ff', '#ffffff'], // Crimson Red, Emerald Green, Cyber Gold, Ice Blue, Snow White
     startDate: { month: 11, day: 1 },  // December 1st (month is 0-indexed)
-    endDate:   { month: 0,  day: 7  }  // January 7th
+    endDate:   { month: 11, day: 31 }  // December 31st
   };
 
   /* Characters for the matrix rain — binary, uppercase hex, katakana */
@@ -24,8 +24,7 @@
     const today = new Date();
     const month = today.getMonth();
     const day   = today.getDate();
-    if (month === CONFIG.startDate.month && day >= CONFIG.startDate.day) return true;
-    if (month === CONFIG.endDate.month   && day <= CONFIG.endDate.day)   return true;
+    if (month === CONFIG.startDate.month && day >= CONFIG.startDate.day && day <= CONFIG.endDate.day) return true;
     return false;
   }
 
