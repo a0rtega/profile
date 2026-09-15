@@ -46,9 +46,17 @@
 		outline-offset: 4px;
 	}
 	#icons {
-		margin: 3rem 0.75rem 0.75rem;
-		text-align: right;
+		position: fixed;
+		bottom: 0;
+		right: 0;
+		margin: 5px;
 		font-size: small;
+		opacity: 0.25;
+		transition: opacity 0.2s;
+	}
+	#icons:hover,
+	#icons:focus-within {
+		opacity: 1;
 	}
 	#emailtext {
 		text-align: center;
