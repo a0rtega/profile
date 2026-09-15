@@ -11,6 +11,7 @@
 
   /* Characters for the cyber LED bulbs — uppercase hexadecimal */
   const HEX_CHARS = '0123456789ABCDEF';
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
 
   /* Christmas-themed matrix rain streams (Red, Green, Gold, Ice) */
   const RAIN_PALETTES = [
@@ -102,11 +103,14 @@
       }
       @keyframes cyber-flicker {
         0%,  89% { opacity: 1;   filter: brightness(1);   }
-        90%       { opacity: 0.1; filter: brightness(0.3); }
-        91%       { opacity: 1;   filter: brightness(2);   }
-        92%       { opacity: 0.3; filter: brightness(0.4); }
-        93%       { opacity: 1;   filter: brightness(1.6); }
+        90%       { opacity: 0.65; filter: brightness(0.8);  }
+        91%       { opacity: 1;    filter: brightness(1.25); }
+        92%       { opacity: 0.8;  filter: brightness(0.9);  }
+        93%       { opacity: 1;    filter: brightness(1.15); }
         94%, 100% { opacity: 1;   filter: brightness(1);   }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .festive-bulb { animation: none; }
       }
     `;
     document.head.appendChild(style);
@@ -116,6 +120,9 @@
   let rainCanvas = null;
   let rainAnimId = null;
   let rainResizeHandler = null;
+  let rainVisibilityHandler = null;
+  let rainPaused = false;
+  const rainSpawnTimers = new Set();
 
   function startMatrixRain() {
     if (rainCanvas) return;
@@ -125,14 +132,17 @@
     const ctx = rainCanvas.getContext('2d');
 
     const CELL = 14; /* px per character cell */
-    let W, H, cols;
+    const FRAME_INTERVAL = 1000 / 30;
+    let W, H, cols, lastFrameTime = 0;
 
     function resize() {
       W = window.innerWidth;
       H = window.innerHeight;
       if (rainCanvas) {
-        rainCanvas.width  = W;
-        rainCanvas.height = H;
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        rainCanvas.width = Math.round(W * pixelRatio);
+        rainCanvas.height = Math.round(H * pixelRatio);
+        ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       }
       cols = Math.floor(W / CELL);
     }
@@ -159,20 +169,35 @@
       });
     }
 
+    function scheduleDrop(delay) {
+      const timer = window.setTimeout(() => {
+        rainSpawnTimers.delete(timer);
+        if (rainCanvas) spawnDrop();
+      }, delay);
+      rainSpawnTimers.add(timer);
+    }
+
     /* Seed ~28% of columns with staggered starts */
     const TARGET = Math.max(8, Math.floor(cols * 0.28));
     for (let i = 0; i < TARGET; i++) {
-      setTimeout(spawnDrop, Math.random() * 4000);
+      scheduleDrop(Math.random() * 4000);
     }
 
-    function frame() {
+    function frame(now) {
       if (!rainCanvas) return;
+      if (rainPaused) return;
+      if (now - lastFrameTime < FRAME_INTERVAL) {
+        rainAnimId = requestAnimationFrame(frame);
+        return;
+      }
+      const elapsed = Math.min(3, (now - lastFrameTime) / (1000 / 60)) || 1;
+      lastFrameTime = now;
       ctx.clearRect(0, 0, W, H);
       ctx.font = `${CELL - 1}px monospace`;
 
       for (let d = drops.length - 1; d >= 0; d--) {
         const drop = drops[d];
-        drop.y += drop.speed;
+        drop.y += drop.speed * elapsed;
 
         for (let j = 0; j < drop.length; j++) {
           const cy = Math.round((drop.y - j) * CELL);
@@ -196,14 +221,27 @@
         /* Recycle when the whole trail has left the screen */
         if ((drop.y - drop.length) * CELL > H) {
           drops.splice(d, 1);
-          setTimeout(spawnDrop, Math.random() * 2500);
+          scheduleDrop(Math.random() * 2500);
         }
       }
 
       rainAnimId = requestAnimationFrame(frame);
     }
 
-    rainAnimId = requestAnimationFrame(frame);
+    rainVisibilityHandler = () => {
+      rainPaused = document.hidden;
+      if (rainPaused && rainAnimId) {
+        cancelAnimationFrame(rainAnimId);
+        rainAnimId = null;
+      }
+      if (!rainPaused && rainCanvas && !rainAnimId) {
+        lastFrameTime = performance.now();
+        rainAnimId = requestAnimationFrame(frame);
+      }
+    };
+    document.addEventListener('visibilitychange', rainVisibilityHandler);
+    rainPaused = document.hidden;
+    if (!rainPaused) rainAnimId = requestAnimationFrame(frame);
   }
 
   function stopMatrixRain() {
@@ -215,6 +253,13 @@
       window.removeEventListener('resize', rainResizeHandler);
       rainResizeHandler = null;
     }
+    if (rainVisibilityHandler) {
+      document.removeEventListener('visibilitychange', rainVisibilityHandler);
+      rainVisibilityHandler = null;
+    }
+    rainSpawnTimers.forEach((timer) => clearTimeout(timer));
+    rainSpawnTimers.clear();
+    rainPaused = false;
     if (rainCanvas) {
       rainCanvas.remove();
       rainCanvas = null;
@@ -283,7 +328,7 @@
   let isFestiveActive = false;
 
   function enableFestive() {
-    if (isFestiveActive) return;
+    if (isFestiveActive || (reducedMotion && reducedMotion.matches)) return;
     isFestiveActive = true;
     injectStyles();
     startMatrixRain();
@@ -316,8 +361,20 @@
 
   /* ── Bootstrap ───────────────────────────────────────────────── */
   function init() {
-    if (isFestiveSeason()) {
+    if (isFestiveSeason() && !(reducedMotion && reducedMotion.matches)) {
       enableFestive();
+    }
+  }
+
+  if (reducedMotion) {
+    const handleMotionPreference = () => {
+      if (reducedMotion.matches) disableFestive();
+      else if (isFestiveSeason()) enableFestive();
+    };
+    if (reducedMotion.addEventListener) {
+      reducedMotion.addEventListener('change', handleMotionPreference);
+    } else {
+      reducedMotion.addListener(handleMotionPreference);
     }
   }
 
@@ -328,5 +385,3 @@
   }
 
 })();
-
-

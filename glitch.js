@@ -1,5 +1,11 @@
 /* ── Glitch transition ────────────────────────────────────── */
 function runGlitch(callback) {
+	/* Avoid flashes and motion for people who request reduced motion. */
+	if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		if (typeof callback === 'function') callback();
+		return;
+	}
+
 	var W = window.innerWidth, H = window.innerHeight;
 	var canvas = document.createElement('canvas');
 	canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10001;';
@@ -74,7 +80,8 @@ function runGlitch(callback) {
 			}
 
 			/* ── Noise pixels ────────────────────────────────────── */
-			var noise = Math.floor(W * H * 0.006 * intensity);
+			/* Cap per-frame work so very large displays stay responsive. */
+			var noise = Math.min(5000, Math.floor(W * H * 0.003 * intensity));
 			for (i = 0; i < noise; i++) {
 				nx = rndInt(0, W);
 				ny = rndInt(0, H);
