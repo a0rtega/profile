@@ -1,28 +1,76 @@
 /* ── Glitch transition ────────────────────────────────────── */
-function runGlitch(callback) {
-	/* Avoid flashes and motion for people who request reduced motion. */
-	if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+function runGlitch(callback, onComplete) {
+	var motion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+	var canvas = null;
+	var animationId = null;
+	var applied = false;
+	var finished = false;
+
+	function apply() {
+		if (applied) return;
+		applied = true;
 		if (typeof callback === 'function') callback();
+	}
+
+	function finish() {
+		if (finished) return;
+		finished = true;
+		if (animationId !== null) cancelAnimationFrame(animationId);
+		if (canvas) canvas.remove();
+		document.removeEventListener('visibilitychange', handleVisibility);
+		window.removeEventListener('pagehide', finish);
+		if (motion) {
+			if (motion.removeEventListener) motion.removeEventListener('change', handleMotion);
+			else if (motion.removeListener) motion.removeListener(handleMotion);
+		}
+		try { apply(); } finally {
+			if (typeof onComplete === 'function') onComplete();
+		}
+	}
+
+	function handleVisibility() {
+		if (document.hidden) finish();
+	}
+
+	function handleMotion() {
+		if (motion.matches) finish();
+	}
+
+	/* Avoid flashes and motion for people who request reduced motion. */
+	if ((motion && motion.matches) || document.hidden || !window.requestAnimationFrame) {
+		finish();
 		return;
 	}
 
 	var W = window.innerWidth, H = window.innerHeight;
-	var canvas = document.createElement('canvas');
+	canvas = document.createElement('canvas');
+	canvas.setAttribute('aria-hidden', 'true');
 	canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10001;';
 	canvas.width = W;
 	canvas.height = H;
+	var ctx;
+	try { ctx = canvas.getContext('2d'); } catch (error) { /* Effects are optional. */ }
+	if (!ctx) {
+		finish();
+		return;
+	}
 	document.body.appendChild(canvas);
-	var ctx = canvas.getContext('2d');
+	document.addEventListener('visibilitychange', handleVisibility);
+	window.addEventListener('pagehide', finish);
+	if (motion) {
+		if (motion.addEventListener) motion.addEventListener('change', handleMotion);
+		else if (motion.addListener) motion.addListener(handleMotion);
+	}
 
 	var DURATION = 950; /* ms */
 	var start = performance.now();
-	var applied = false;
 	var strobed = false;
 
 	function rnd(lo, hi)    { return Math.random() * (hi - lo) + lo; }
 	function rndInt(lo, hi) { return Math.floor(rnd(lo, hi)); }
 
 	function frame(now) {
+		if (finished) return;
 		var t = Math.min((now - start) / DURATION, 1);
 		ctx.clearRect(0, 0, W, H);
 
@@ -31,14 +79,13 @@ function runGlitch(callback) {
 
 		/* ── Full-screen strobe at the exact switch moment ── */
 		if (!applied && t >= 0.45) {
-			applied = true;
-			if (typeof callback === 'function') callback();
+			apply();
 		}
 		if (applied && !strobed) {
 			strobed = true;
 			ctx.fillStyle = 'rgba(255,255,255,0.82)';
 			ctx.fillRect(0, 0, W, H);
-			requestAnimationFrame(frame);
+			animationId = requestAnimationFrame(frame);
 			return; /* dedicate this frame entirely to the flash */
 		}
 
@@ -99,11 +146,11 @@ function runGlitch(callback) {
 		}
 
 		if (t < 1) {
-			requestAnimationFrame(frame);
+			animationId = requestAnimationFrame(frame);
 		} else {
-			canvas.remove();
+			finish();
 		}
 	}
 
-	requestAnimationFrame(frame);
+	animationId = requestAnimationFrame(frame);
 }

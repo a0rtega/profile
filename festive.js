@@ -1,9 +1,10 @@
 (function () {
+  'use strict';
 
   const CONFIG = {
     colors: ['#ff2244', '#00e676', '#ffcc00', '#00e5ff', '#ffffff'], // Crimson Red, Emerald Green, Cyber Gold, Ice Blue, Snow White
     startDate: { month: 11, day: 1 },  // December 1st (month is 0-indexed)
-    endDate:   { month: 11, day: 31 }  // December 31st
+    endDate:   { month: 11, day: 31 }  // December 31st (inclusive)
   };
 
   /* Characters for the matrix rain — binary, uppercase hex, katakana */
@@ -23,10 +24,10 @@
 
   function isFestiveSeason() {
     const today = new Date();
-    const month = today.getMonth();
-    const day   = today.getDate();
-    if (month === CONFIG.startDate.month && day >= CONFIG.startDate.day && day <= CONFIG.endDate.day) return true;
-    return false;
+    const date = today.getMonth() * 100 + today.getDate();
+    const start = CONFIG.startDate.month * 100 + CONFIG.startDate.day;
+    const end = CONFIG.endDate.month * 100 + CONFIG.endDate.day;
+    return start <= end ? date >= start && date <= end : date >= start || date <= end;
   }
 
   /* ── Styles ──────────────────────────────────────────────────── */
@@ -36,7 +37,7 @@
     stylesInjected = true;
     const style = document.createElement('style');
     style.id = 'festive-styles';
-    style.innerHTML = `
+    style.textContent = `
       #festive-canvas {
         position: fixed;
         top: 0; left: 0;
@@ -125,11 +126,17 @@
   const rainSpawnTimers = new Set();
 
   function startMatrixRain() {
-    if (rainCanvas) return;
+    if (rainCanvas || !window.requestAnimationFrame) return;
     rainCanvas = document.createElement('canvas');
     rainCanvas.id = 'festive-canvas';
+    rainCanvas.setAttribute('aria-hidden', 'true');
+    let ctx;
+    try { ctx = rainCanvas.getContext('2d'); } catch (error) { /* Effects are optional. */ }
+    if (!ctx) {
+      rainCanvas = null;
+      return;
+    }
     document.body.appendChild(rainCanvas);
-    const ctx = rainCanvas.getContext('2d');
 
     const CELL = 14; /* px per character cell */
     const FRAME_INTERVAL = 1000 / 30;
@@ -144,14 +151,14 @@
         rainCanvas.height = Math.round(H * pixelRatio);
         ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       }
-      cols = Math.floor(W / CELL);
+      cols = Math.max(1, Math.floor(W / CELL));
+      drops.forEach((drop) => { drop.col = Math.min(drop.col, cols - 1); });
     }
+    /* Keep existing streams within the viewport after rotation or resizing. */
+    const drops = [];
     resize();
     rainResizeHandler = resize;
     window.addEventListener('resize', rainResizeHandler);
-
-    /* Active drop streams */
-    const drops = [];
 
     function spawnDrop() {
       if (!rainCanvas) return;
@@ -184,6 +191,7 @@
     }
 
     function frame(now) {
+      rainAnimId = null;
       if (!rainCanvas) return;
       if (rainPaused) return;
       if (now - lastFrameTime < FRAME_INTERVAL) {
@@ -230,11 +238,11 @@
 
     rainVisibilityHandler = () => {
       rainPaused = document.hidden;
-      if (rainPaused && rainAnimId) {
+      if (rainPaused && rainAnimId !== null) {
         cancelAnimationFrame(rainAnimId);
         rainAnimId = null;
       }
-      if (!rainPaused && rainCanvas && !rainAnimId) {
+      if (!rainPaused && rainCanvas && rainAnimId === null) {
         lastFrameTime = performance.now();
         rainAnimId = requestAnimationFrame(frame);
       }
@@ -245,7 +253,7 @@
   }
 
   function stopMatrixRain() {
-    if (rainAnimId) {
+    if (rainAnimId !== null) {
       cancelAnimationFrame(rainAnimId);
       rainAnimId = null;
     }
@@ -296,6 +304,7 @@
     if (document.getElementById('festive-lights-container')) return;
     const container = document.createElement('div');
     container.id = 'festive-lights-container';
+    container.setAttribute('aria-hidden', 'true');
     renderBulbs(container);
     document.body.appendChild(container);
 
@@ -352,8 +361,8 @@
 
   /* ── Keyboard shortcut ('C' key) ─────────────────────────────── */
   window.addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.altKey || e.metaKey) return;
-    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
+    if (e.defaultPrevented || e.repeat || e.isComposing || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable)) return;
     if (e.key === 'c' || e.key === 'C') {
       toggleFestive();
     }
@@ -373,7 +382,7 @@
     };
     if (reducedMotion.addEventListener) {
       reducedMotion.addEventListener('change', handleMotionPreference);
-    } else {
+    } else if (reducedMotion.addListener) {
       reducedMotion.addListener(handleMotionPreference);
     }
   }
